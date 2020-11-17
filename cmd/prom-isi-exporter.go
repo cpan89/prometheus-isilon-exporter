@@ -12,9 +12,9 @@ import (
 	"runtime"
 
 	"github.com/jamiealquiza/envy"
-	"github.com/paychex/prometheus-isilon-exporter/pkg/collector"
-	isiconfig "github.com/paychex/prometheus-isilon-exporter/pkg/config"
-	"github.com/paychex/prometheus-isilon-exporter/pkg/isiclient"
+	"github.com/cpan89/prometheus-isilon-exporter/pkg/collector"
+	isiconfig "github.com/cpan89/prometheus-isilon-exporter/pkg/config"
+	"github.com/cpan89/prometheus-isilon-exporter/pkg/isiclient"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"

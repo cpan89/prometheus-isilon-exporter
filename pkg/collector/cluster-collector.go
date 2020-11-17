@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/paychex/prometheus-isilon-exporter/pkg/isiclient"
+	"github.com/cpan89/prometheus-isilon-exporter/pkg/isiclient"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/tidwall/gjson"
@@ -110,11 +110,6 @@ var (
 	alertsnumerror = prometheus.NewDesc(
 		prometheus.BuildFQName("emcisi", "cluster", "alerts_error"),
 		"Number of current error alerts for the cluster",
-		[]string{"clustername"}, nil,
-	)
-	alertsnuminfo = prometheus.NewDesc(
-		prometheus.BuildFQName("emcisi", "cluster", "alerts_info"),
-		"Number of current info alerts for the cluster",
 		[]string{"clustername"}, nil,
 	)
 	alertsnumwarning = prometheus.NewDesc(
@@ -287,7 +282,7 @@ func (e *IsiClusterCollector) Collect(ch chan<- prometheus.Metric) {
 		return true
 	})
 
-	// get count of errors in "information", "warning" and "error" states that are not resolved
+	// get count of errors in "warning" and "error" states that are not resolved
 	reqStatusURL = "https://" + e.isiClient.ClusterAddress + ":8080/platform/3/event/eventgroup-occurrences?resolved=false&ignore=false"
 	s, err = e.isiClient.CallIsiAPI(reqStatusURL, 1)
 	if err != nil {
@@ -298,8 +293,6 @@ func (e *IsiClusterCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	result = gjson.Get(s, `eventgroups.#[severity=="warning"]#`)
 	ch <- prometheus.MustNewConstMetric(alertsnumwarning, prometheus.GaugeValue, arrayCount(result), e.isiClient.ClusterName)
-	result = gjson.Get(s, `eventgroups.#[severity=="information"]#`)
-	ch <- prometheus.MustNewConstMetric(alertsnuminfo, prometheus.GaugeValue, arrayCount(result), e.isiClient.ClusterName)
 	result = gjson.Get(s, `eventgroups.#[severity=="error"]#`)
 	ch <- prometheus.MustNewConstMetric(alertsnumerror, prometheus.GaugeValue, arrayCount(result), e.isiClient.ClusterName)
 	result = gjson.Get(s, `eventgroups.#[severity=="error"]#`)
@@ -363,7 +356,6 @@ func (e *IsiClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- clusterSSDIFSBytesTotal
 	ch <- alertsnumcritical
 	ch <- alertsnumerror
-	ch <- alertsnuminfo
 	ch <- alertsnumwarning
 	ch <- nodeDiskBusy
 	ch <- nodeDiskAccessLatency
