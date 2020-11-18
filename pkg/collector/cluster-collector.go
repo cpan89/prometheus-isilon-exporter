@@ -137,26 +137,6 @@ var (
 		"The rate of bytes read.",
 		[]string{"clustername", "drive_id", "type"}, nil,
 	)
-	pathHardQuota = prometheus.NewDesc(
-		prometheus.BuildFQName("emcisi", "cluster", "hard_quota"),
-		"HardQuota of a path bytes",
-		[]string{"clustername", "path"}, nil,
-	)
-	pathAdvisoryQuota = prometheus.NewDesc(
-		prometheus.BuildFQName("emcisi", "cluster", "advisory_quota"),
-		"Advisory Quota of a path bytes",
-		[]string{"clustername", "path"}, nil,
-	)
-	pathLogicalUsed = prometheus.NewDesc(
-		prometheus.BuildFQName("emcisi", "cluster", "logical_used"),
-		"Used data w/o overhead of a path bytes",
-		[]string{"clustername", "path"}, nil,
-	)
-	pathPhysicalUsed = prometheus.NewDesc(
-		prometheus.BuildFQName("emcisi", "cluster", "physical_used"),
-		"Used Data w/overhead of a path bytes",
-		[]string{"clustername", "path"}, nil,
-	)
 	exporterUp = prometheus.NewDesc(
 		prometheus.BuildFQName("emcisi", "exporter", "up"),
 		"Indicates if scrape was succesful or not.",
@@ -167,6 +147,26 @@ var (
 		"A metric with a constant '1' value labeled by version, and nodecount",
 		[]string{"version", "nodecount", "clustername"}, nil,
 	)
+	snapshotActiveCount = prometheus.NewDesc(
+		prometheus.BuildFQName("emcisi", "cluster", "snapshot_active_count"),
+		"The number of active snapshots.",
+		[]string{"clustername"}, nil,
+	)
+	snapshotActiveSize = prometheus.NewDesc(
+		prometheus.BuildFQName("emcisi", "cluster", "snapshot_active_size"),
+		"The size of active snapshots.",
+		[]string{"clustername"}, nil,
+	)
+	snapshotTotalCount = prometheus.NewDesc(
+		prometheus.BuildFQName("emcisi", "cluster", "snapshot_total_count"),
+		"The number of total snapshots.",
+		[]string{"clustername"}, nil,
+	)
+	snapshotTotalSize = prometheus.NewDesc(
+		prometheus.BuildFQName("emcisi", "cluster", "snapshot_total_size"),
+		"The size of total snapshots.",
+		[]string{"clustername"}, nil,
+	)	
 	isiCollectionDuration = prometheus.NewDesc(
 		"emcisi_collection_duration_seconds",
 		"Duration of collections by the EMC Isilon exporter",
@@ -298,24 +298,21 @@ func (e *IsiClusterCollector) Collect(ch chan<- prometheus.Metric) {
 	result = gjson.Get(s, `eventgroups.#[severity=="error"]#`)
 	ch <- prometheus.MustNewConstMetric(alertsnumcritical, prometheus.GaugeValue, arrayCount(result), e.isiClient.ClusterName)
 
-	//Quota Collection
-	reqStatusURL = "https://" + e.isiClient.ClusterAddress + ":8080/platform/1/quota/quotas"
-	s, err = e.isiClient.CallIsiAPI(reqStatusURL, 1)
+	// Snapshot Collection
+	reqStatusURL := "https://" + e.isiClient.ClusterAddress + ":8080/platform/1/snapshot/snapshots-summary"
+	s, err := e.isiClient.CallIsiAPI(reqStatusURL, 1)
 	if err != nil {
 		duration := float64(time.Since(start).Seconds())
 		ch <- prometheus.MustNewConstMetric(isiCollectionDuration, prometheus.GaugeValue, duration, e.isiClient.ClusterName)
 		ch <- prometheus.MustNewConstMetric(exporterUp, prometheus.GaugeValue, 0, e.isiClient.ClusterName)
 		return
 	}
-	result = gjson.Get(s, "quotas")
-	result.ForEach(func(key, value gjson.Result) bool {
-		path := gjson.Get(value.String(), "path").String()
-		ch <- prometheus.MustNewConstMetric(pathHardQuota, prometheus.GaugeValue, gjson.Get(value.String(), "thresholds.hard").Float(), e.isiClient.ClusterName, path)
-		ch <- prometheus.MustNewConstMetric(pathAdvisoryQuota, prometheus.GaugeValue, gjson.Get(value.String(), "thresholds.advisory").Float(), e.isiClient.ClusterName, path)
-		ch <- prometheus.MustNewConstMetric(pathLogicalUsed, prometheus.GaugeValue, gjson.Get(value.String(), "usage.logical").Float(), e.isiClient.ClusterName, path)
-		ch <- prometheus.MustNewConstMetric(pathPhysicalUsed, prometheus.GaugeValue, gjson.Get(value.String(), "usage.physical").Float(), e.isiClient.ClusterName, path)
-		return true
-	})
+	ch <- prometheus.MustNewConstMetric(snapshotActiveCount, prometheus.GaugeValue, gjson.Get(s, "summary.active_count").Float(), e.isiClient.ClusterName)
+	ch <- prometheus.MustNewConstMetric(snapshotActiveSize, prometheus.GaugeValue, gjson.Get(s, "summary.active_size").Float(), e.isiClient.ClusterName)
+	ch <- prometheus.MustNewConstMetric(snapshotTotalCount, prometheus.GaugeValue, gjson.Get(s, "summary.count").Float(), e.isiClient.ClusterName)
+	ch <- prometheus.MustNewConstMetric(snapshotTotalSize, prometheus.GaugeValue, gjson.Get(s, "summary.size").Float(), e.isiClient.ClusterName)
+
+
 	duration := float64(time.Since(start).Seconds())
 	ch <- prometheus.MustNewConstMetric(isiCollectionDuration, prometheus.GaugeValue, duration, e.isiClient.ClusterName)
 	ch <- prometheus.MustNewConstMetric(exporterUp, prometheus.GaugeValue, 1, e.isiClient.ClusterName)
@@ -361,8 +358,8 @@ func (e *IsiClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- nodeDiskAccessLatency
 	ch <- nodeDiskBytesIn
 	ch <- nodeDiskBytesOut
-	ch <- pathHardQuota
-	ch <- pathAdvisoryQuota
-	ch <- pathLogicalUsed
-	ch <- pathPhysicalUsed
+	ch <- snapshotActiveCount
+	ch <- snapshotActiveSize
+	ch <- snapshotTotalCount
+	ch <- snapshotTotalSize
 }
